@@ -160,3 +160,15 @@ ipcMain.handle("select-folder-input-path", async (_, arg) => {
         return result
     }
 })
+
+// Select file output path
+ipcMain.handle("select-output-path", async (_, arg) => {
+    const result = await dialog.showOpenDialog(win, {
+        properties: ["openDirectory", "showHiddenFiles", "createDirectory"],
+    })
+    if (result.canceled) {
+        return null
+    } else {
+        return result.filePaths[0]
+    }
+})

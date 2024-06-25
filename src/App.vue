@@ -20,8 +20,10 @@ async function selectFolderInputPath() {
     console.log(input);
 }
 
-function selectOutputPath() {
-
+// 选择输出路径
+async function selectOutputPath() {
+    const output = await window.ipcRenderer.invoke('select-output-path')
+    outputPath.value = output
 }
 </script>
 
