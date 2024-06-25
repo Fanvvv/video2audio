@@ -1,0 +1,12 @@
+:root {
+  --c-text-base: #232323;
+
+  --rgb-bg-base: 250, 250, 250;
+
+  --c-bg-base: rgb(var(--rgb-bg-base));
+  --c-bg-active: #f2f2f2;
+  --c-bg-card: #00000006;
+  --c-bg-code: #00000006;
+  --c-bg-selection: #8885;
+  --c-bg-dm: #f1e8e6;
+}
