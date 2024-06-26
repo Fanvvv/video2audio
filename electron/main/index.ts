@@ -2,6 +2,9 @@ import { createRequire } from "node:module"
 import { fileURLToPath } from "node:url"
 import path from "node:path"
 import os from "node:os"
+import fs from "node:fs"
+import ffmpeg from "fluent-ffmpeg"
+import ffmpegPath from "ffmpeg-static"
 import fsPromises from "node:fs/promises"
 import { BrowserWindow, app, ipcMain, shell, Menu, dialog } from "electron"
 
@@ -129,6 +132,7 @@ ipcMain.handle("open-win", (_, arg) => {
     }
 })
 
+let inputPath, outputPath, files
 // Select file input path
 ipcMain.handle("select-file-input-path", async (_, arg) => {
     const result = await dialog.showOpenDialog(win, {
@@ -137,15 +141,18 @@ ipcMain.handle("select-file-input-path", async (_, arg) => {
             { name: "Movies", extensions: ["mkv", "avi", "mp4"] },
         ]
     })
-    if (result.canceled) {
-        return null
-    } else {
+    if (!result.canceled) {
+        files = result.filePaths
         return result.filePaths.map((item) => {
             const pathArray = item.replace(/\\/g, "/").split("/")
-            return {
+            const list = {
                 name: pathArray.pop(),
                 path: pathArray.join("/")
             }
+            if (!inputPath) {
+                inputPath = list.path
+            }
+            return list
         })
     }
 })
@@ -155,21 +162,21 @@ ipcMain.handle("select-folder-input-path", async (_, arg) => {
     const result = await dialog.showOpenDialog(win, {
         properties: ["openDirectory", "showHiddenFiles", "createDirectory"],
     })
-    try {
-        const path = result.filePaths[0]
-        const files = await fsPromises.readdir(path)
-        if (result.canceled) {
-            return null
-        } else {
+    if (!result.canceled) {
+        try {
+            const path = result.filePaths[0]
+            inputPath = path
+            const list = await fsPromises.readdir(path)
+            files = list
             return { 
                 path, 
-                files: files.map((name) => {
+                files: list.map((name) => {
                     return { name }
                 })
             }
+        } catch (error) {
+            return error
         }
-    } catch (error) {
-        return error
     }
 })
 
@@ -178,9 +185,45 @@ ipcMain.handle("select-output-path", async (_, arg) => {
     const result = await dialog.showOpenDialog(win, {
         properties: ["openDirectory", "showHiddenFiles", "createDirectory"],
     })
-    if (result.canceled) {
-        return null
-    } else {
+    if (!result.canceled) {
+        outputPath = result.filePaths[0]
         return result.filePaths[0]
     }
 })
+
+// Video to Audio
+ipcMain.on("video2audio", async (event, arg) => {
+    // 确保 ffmpeg 可执行文件路径设置正确
+    ffmpeg.setFfmpegPath(ffmpegPath)
+    // 没设置输出路径，默认使用输入路径
+    if (!outputPath) {
+        outputPath = inputPath
+    }
+    // 创建输出目录（如果不存在）
+    if (!fs.existsSync(outputPath)) {
+        fs.mkdirSync(outputPath, { recursive: true })
+    }
+
+    Promise.all(files.map((file: string) => formatConversion(file, event)))
+        .then(() => {
+            event.reply("video2audio-finished", true)
+        })
+        .catch((error) => {
+            event.reply("video2audio-finished", false)
+        })
+})
+
+function formatConversion(file: string, event: Electron.IpcMainEvent) {
+    return new Promise((resolve) => {
+        const baseName = path.basename(file) // 带扩展名 a.mp4
+        const extension = path.extname(file) // 扩展名 .mp4
+        const fileName = path.basename(baseName, extension) // 不带扩展名 a
+        ffmpeg(inputPath + "/" + file)
+            .toFormat("mp3")
+            .on("end", () => {
+                event.reply('video2audio-progress', baseName)
+                resolve(true)
+            })
+            .save(`${outputPath}/${fileName}.mp3`)
+    })
+}

@@ -31,10 +31,19 @@ async function selectOutputPath() {
     outputPath.value = output
 }
 
+const finishedList = ref<string[]>([])
+const finished = ref(false)
 // 格式转换
-async function video2audio() {
+function video2audio() {
     // 实现格式转换逻辑
     console.log('开始转换')
+    window.ipcRenderer.send('video2audio')
+    window.ipcRenderer.on('video2audio-progress', (event, file) => {
+        finishedList.value.push(file)
+    })
+    window.ipcRenderer.on('video2audio-finished', (event, result) => {
+        finished.value = result
+    })
 }
 </script>
 
@@ -54,16 +63,18 @@ async function video2audio() {
         </div>
 
         <div mt-5>
-            <div my-3>
+            <div my-3 flex="~ items-center justify-between">
                 <div>输入文件列表：</div>
-                <button btn-solid w-112 @click="video2audio">转换</button>
+                <button btn-solid w-61 @click="video2audio">转换</button>
             </div>
             <div w-full h-60 overflow-y-scroll border border-solid border-base>
                 <div grid grid-cols-2 w-full py-2 v-for="(item, index) in list" :key="index">
-                    <div w-full truncate>{{ item.name }}</div>
+                    <div w-full truncate :class="finishedList.includes(item.name) ? 'text-green-500' : ''">{{ item.name }}</div>
                 </div>
             </div>
         </div>
+        <div v-if="finished">转换完成</div>
+        <div v-else>有错误</div>
     </div>
 </template>
 
