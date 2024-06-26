@@ -2,6 +2,7 @@ import { createRequire } from "node:module"
 import { fileURLToPath } from "node:url"
 import path from "node:path"
 import os from "node:os"
+import fsPromises from "node:fs/promises"
 import { BrowserWindow, app, ipcMain, shell, Menu, dialog } from "electron"
 
 const require = createRequire(import.meta.url)
@@ -152,12 +153,23 @@ ipcMain.handle("select-file-input-path", async (_, arg) => {
 // Select folder input path
 ipcMain.handle("select-folder-input-path", async (_, arg) => {
     const result = await dialog.showOpenDialog(win, {
-        properties: ["openDirectory", "multiSelections", "showHiddenFiles", "createDirectory"],
+        properties: ["openDirectory", "showHiddenFiles", "createDirectory"],
     })
-    if (result.canceled) {
-        return null
-    } else {
-        return result
+    try {
+        const path = result.filePaths[0]
+        const files = await fsPromises.readdir(path)
+        if (result.canceled) {
+            return null
+        } else {
+            return { 
+                path, 
+                files: files.map((name) => {
+                    return { name }
+                })
+            }
+        }
+    } catch (error) {
+        return error
     }
 })
 
