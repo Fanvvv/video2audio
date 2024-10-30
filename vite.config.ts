@@ -1,7 +1,8 @@
 import fs from "node:fs"
 import process from "node:process"
+import path from "node:path"
 import { defineConfig } from "vite"
-import UnoCSS from 'unocss/vite'
+import UnoCSS from "unocss/vite"
 import vue from "@vitejs/plugin-vue"
 import electron from "vite-plugin-electron/simple"
 import pkg from "./package.json"
@@ -15,6 +16,11 @@ export default defineConfig(({ command }) => {
     const sourcemap = isServe || !!process.env.VSCODE_DEBUG
 
     return {
+        resolve: {
+            alias: {
+                "@": path.resolve(__dirname, "src"),
+            },
+        },
         plugins: [
             UnoCSS(),
             vue(),
